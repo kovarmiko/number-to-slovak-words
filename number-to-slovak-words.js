@@ -1,12 +1,3 @@
-/* 
- * Creator: Michal Kovář(2016)
- * exposes API:
- * Returns an object with the following API property:
- * 
- * replace(number) - expects a number or an errow will be thrown 
- *                 - returns the formated SVK string in lowercase 
- */
-
 var ReplaceNumberWithWords = (function () {
     var numbersInWords = {
         zero: 'nula',
@@ -44,104 +35,95 @@ var ReplaceNumberWithWords = (function () {
         2000: 'dvetisíc'
     };
     return {
-        replace: function replacer(number) {
+        numberHolder : [],
+
+        number : null,
+
+        replace(number) {
+                //reset numberHolder
+                this.numberHolder = [];
+
+                this.number = number;
+            
             //find out how many figures
             if (isNaN(number)) {
                 throw new Error("the supplied parameter for replaceNumberWithWords function call must be a number");
                 return;
             }
-
-            var thousands = '';
-            var belowThousands = '';
-
-            if (number === 0) {
-                return numbersInWords.zero;
-            }
-
-            if (number === 1000) {
-                return numbersInWords[1] + numbersInWords[1000];
-            }
-
-
-            //get anything above thousand not including 2000 - 2999 range   
+            //if the number exists in the numbersInWords object return that
+          if( numbersInWords[number]) return numbersInWords[number];
             
-            if (number > 1000 && (number < 2000 || number > 3000)) {
-                var thousandsLen = Math.floor(number / 1000).toString().length;
-                thousands = this.convertToWords(Math.floor(number / 1000), thousandsLen) + numbersInWords[1000];
-            }
-            //this is because Slovaks say 'dvetisíc' and not 'dvatisíc'
-            if (2000 <= number && number < 3000) {
-                thousands = 'dve' + numbersInWords[1000];
-            }
+            //check length
+            var numberInString = number.toString() 
+            var numberLength = numberInString.length;
+            var numberHolder = [];
 
-            //get anything below thousands
-            var belowThousadsLen = (number % 1000).toString().length;
-
-            if (number % 1000 && belowThousadsLen) {
-                var belowThousands = this.convertToWords(number % 1000, belowThousadsLen);
+            for (let len = numberLength; len > 0; len-- ) {
+             this.numberHolder[numberLength - len] = numberInString[len-1];  
+              
             }
 
-            return thousands + belowThousands;
+            //return console.log(numberHolder);
+            return this.convertTowords();
 
         },
-        convertToWords: function converter(number, len) {
-            //declare variables
-            var temp,
-                    exponent,
-                    reminder,
-                    numberElement,
-                    wordComponent,
-                    currentMultipleOfTen;
+        convertTowords(){
+            this.numberHolder.forEach((val, index) => {
+                    let numberComponent = +val * Math.pow(10, index);
+                    if (numbersInWords[numberComponent] && index > 1){
+                            this.numberHolder[index] = numbersInWords[numberComponent];
+                            return;
+                    }
+                    let number = +this.numberHolder[index];
+                    if(number === 0) return;
+                    
+                   // let suffix = index === 3 ? 'tisic' : '';
+                    let position = index % 3;
 
-            //initialzie variables with the values
-            arguments.length === 3 ? temp = arguments[2] : temp = [];
-            exponent = len - 1;
-            currentMultipleOfTen = Math.pow(10, exponent);
-            reminder = number % currentMultipleOfTen;// currentMulitpleOfTen;
-            numberElement = (+number - +reminder);
+                    switch(position){
+                            case 0 : this.numberHolder[index] = numbersInWords[number] || "" ; break;
+                            case 1 : this.numberHolder[index] = this.processTens(index) ; break;
+                            case 2 : this.numberHolder[index] =  numbersInWords[number] + numbersInWords[100]; break;
+                    }
 
-            //check if numberElements in numberInWords exists (this is for exceptions from standard)
-            if (numbersInWords[numberElement]) {
-                //if so add it to the temporary object
+            });
+       let processedString = this.processForOutput();
+       return processedString;
+        
 
-                //decrease len for appropriate number
-                if (numbersInWords[number]) {
-                    temp.push(numbersInWords[number]);
-
-                } else {
-                    temp.push(numbersInWords[numberElement]);
-
+        },
+        processTens(index){
+                let tensAndOnes;
+                switch(index){
+                    case 1: tensAndOnes = this.number % 100; break;
+                    case 4: tensAndOnes = Math.floor(this.number/1000); break;
                 }
 
-            } else {
-                //combine number of units and the current multiple of ten
-                wordComponent = numberElement / +currentMultipleOfTen;//currentMultipleOfTen;
-
-                temp.push(numbersInWords[wordComponent] + (currentMultipleOfTen !== 1 ? numbersInWords[currentMultipleOfTen] : ''));
-            }
-            //decrement length by 2 steps if reminder is one digit number
-            //decrement length by 1 step if reminder is a two digit number
-            +reminder - 10 >= 0 ? len-- : len -= 2;
-
-            if (reminder && len > 0) {
-                //make the recurcive call
-                this.convertToWords(reminder, len, temp);
-            }
-            //return the array
-            return temp.join('');
+                if(numbersInWords[tensAndOnes]){
+                        let tenResults = numbersInWords[tensAndOnes];
+                        this.numberHolder[index - 1] = '0';
+                        return tenResults;
+                } else {
+                       return numbersInWords[+this.numberHolder[index] * 10];
+                }
 
         },
-        //experimental method for returning concatenated string of number in Slovak langulage. 
-        //Used to search for 'undefined' or NaN -siganlling problems
-        checkStringOutput: function chceckStringOutput(topNumber) {
-            var output = [];
-            for (var i = 0, len = topNumber; i < len; i++) {
-                output.push(replaceNumberWithWords(i));
+        processForOutput(){
+            if(this.numberHolder.length > 3){
+                this.numberHolder.splice(3, 0, 'tisíc');
             }
 
-            return output.join('');
-        }
+            return this.numberHolder.reverse().join('').replace(/0/g, '').replace('tisíctisíc', 'tisíc');  
 
+        },
+
+        testSomefigures(){
+            '15 30 45 312 516 888 901 700 1001 1203 1543 1999 2000 2001 2508 2999 3000 3001 3300 5400 9809 10000 10001 12345 25303 234234'
+            .split(' ').forEach(val => {
+               console.log(val);
+               console.log(this.replace(+val)); 
+            });
+
+        }
     };
 })();
-
